@@ -20,8 +20,6 @@ const media: MediaItem[] = [
   { type: "image", src: "/media/photo8.jpg" },
   { type: "image", src: "/media/photo9.jpg" },
   { type: "image", src: "/media/photo10.jpg" },
-  { type: "video", src: "/media/video1.mp4" },
-  { type: "video", src: "/media/video2.mp4" },
 ];
 
 type HeartItem = {
