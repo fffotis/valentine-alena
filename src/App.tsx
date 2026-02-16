@@ -2,13 +2,6 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart } from "lucide-react";
 
-// ==============================
-// ❤️ INSTRUCTIONS
-// 1. Replace media files inside the `media` array with your own.
-// 2. Start date is set to October 20 (change year if needed).
-// 3. Fully optimized for smartphones.
-// ==============================
-
 const START_DATE = new Date("2025-10-20T00:00:00");
 
 type MediaItem = {
@@ -34,13 +27,16 @@ const media: MediaItem[] = [
 type HeartItem = {
   id: number;
   left: number;
+  size: number;
   duration: number;
 };
 
 export default function App() {
-  const [index, setIndex] = useState<number>(0);
+  const [index, setIndex] = useState(0);
+  const [opened, setOpened] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [hearts, setHearts] = useState<HeartItem[]>([]);
-  const [opened, setOpened] = useState<boolean>(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [timeTogether, setTimeTogether] = useState({
     days: 0,
     hours: 0,
@@ -48,20 +44,37 @@ export default function App() {
     seconds: 0,
   });
 
-  // 📱 Swipe support for mobile
-  let touchStartX = 0;
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX = e.changedTouches[0].clientX;
-  };
+  // Preload media
+  useEffect(() => {
+    const preload = async () => {
+      const promises = media.map((item) => {
+        return new Promise<void>((resolve) => {
+          if (item.type === "image") {
+            const img = new Image();
+            img.src = item.src;
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          } else {
+            const video = document.createElement("video");
+            video.src = item.src;
+            video.onloadeddata = () => resolve();
+            video.onerror = () => resolve();
+          }
+        });
+      });
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const diff = e.changedTouches[0].clientX - touchStartX;
-    if (diff > 50) prev();
-    if (diff < -50) next();
-  };
+      await Promise.all(promises);
+      setLoaded(true);
+    };
 
-  // ⏳ TIMER
+    preload();
+  }, []);
+
+  // Timer restored
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -78,47 +91,62 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // 💖 HEARTS
-  const spawnHearts = () => {
-    const newHearts: HeartItem[] = Array.from({ length: 6 }).map(() => ({
-      id: Math.random(),
-      left: Math.random() * 100,
-      duration: 2 + Math.random() * 2,
-    }));
-
-    setHearts((prev) => [...prev, ...newHearts]);
-  };
-
+  // Soft floating hearts
   useEffect(() => {
-    const timer = setInterval(() => {
-      setHearts((prev) => prev.slice(-20));
-    }, 3000);
+    const interval = setInterval(() => {
+      const newHeart: HeartItem = {
+        id: Math.random(),
+        left: Math.random() * 100,
+        size: 12 + Math.random() * 18,
+        duration: 6 + Math.random() * 4,
+      };
 
-    return () => clearInterval(timer);
+      setHearts((prev) => [...prev.slice(-40), newHeart]);
+    }, 800);
+
+    return () => clearInterval(interval);
   }, []);
 
-  const next = () => {
-    setIndex((prev) => (prev + 1) % media.length);
-    spawnHearts();
+  let touchStartX = 0;
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX = e.changedTouches[0].screenX;
   };
 
-  const prev = () => {
-    setIndex((prev) => (prev - 1 + media.length) % media.length);
-    spawnHearts();
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const delta = e.changedTouches[0].screenX - touchStartX;
+    if (delta > 50) prev();
+    if (delta < -50) next();
   };
 
-  // 💌 COVER SCREEN
+  const next = () => setIndex((prev) => (prev + 1) % media.length);
+  const prev = () => setIndex((prev) => (prev - 1 + media.length) % media.length);
+
+  if (!loaded) {
+    return (
+      <div className="min-h-[100svh] flex items-center justify-center bg-gradient-to-br from-rose-200 to-pink-300">
+        <motion.div
+          animate={{ scale: [1, 1.2, 1] }}
+          transition={{ repeat: Infinity, duration: 1.5 }}
+          className="text-6xl text-rose-600"
+        >
+          ❤️
+        </motion.div>
+      </div>
+    );
+  }
+
   if (!opened) {
     return (
       <div
-        className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-200 to-pink-300 p-4"
+        className="min-h-[100svh] flex items-center justify-center bg-gradient-to-br from-rose-200 to-pink-300 p-6"
         onClick={() => setOpened(true)}
       >
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 1 }}
-          className="bg-white rounded-3xl shadow-2xl p-6 text-center w-full max-w-sm cursor-pointer"
+          className="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-sm cursor-pointer"
         >
           <motion.div
             animate={{ rotate: [0, -5, 5, -5, 0] }}
@@ -127,10 +155,10 @@ export default function App() {
           >
             💌
           </motion.div>
-          <h2 className="text-2xl font-bold text-rose-600 mb-3">
+          <h2 className="text-2xl font-bold text-rose-600 mb-2">
             Алёне от Руслана
           </h2>
-          <p className="text-rose-500 text-sm">
+          <p className="text-rose-500">
             Нажми, чтобы открыть валентинку ❤️
           </p>
         </motion.div>
@@ -139,40 +167,35 @@ export default function App() {
   }
 
   return (
-    <div
-      className="relative min-h-screen bg-gradient-to-br from-pink-100 via-rose-200 to-red-200 flex flex-col items-center justify-start overflow-hidden text-center px-4 pt-8 pb-20"
-      onClick={spawnHearts}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="relative min-h-[100svh] bg-gradient-to-br from-pink-100 via-rose-200 to-red-200 flex flex-col items-center justify-center overflow-hidden text-center px-4 py-6">
       <AnimatePresence>
         {hearts.map((heart) => (
           <motion.div
             key={heart.id}
             initial={{ opacity: 0, y: 0 }}
-            animate={{ opacity: 1, y: -250 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: heart.duration }}
-            className="absolute text-pink-500"
-            style={{ left: `${heart.left}%`, bottom: 0 }}
+            animate={{ opacity: 0.4, y: -600 }}
+            transition={{ duration: heart.duration, ease: "linear" }}
+            className="absolute text-pink-400 pointer-events-none"
+            style={{ left: `${heart.left}%`, bottom: -20 }}
           >
-            <Heart fill="currentColor" size={18} />
+            <Heart fill="currentColor" size={heart.size} />
           </motion.div>
         ))}
       </AnimatePresence>
 
-      <h1 className="text-3xl font-bold text-rose-700 mb-3">
+      <motion.h1
+        initial={{ opacity: 0, y: -40 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 1 }}
+        className="text-3xl md:text-6xl font-bold text-rose-700 mb-4"
+      >
         Алёна ❤️
-      </h1>
-
-      <p className="text-rose-700 text-sm mb-1">Ты — моё самое тёплое воспоминание.</p>
-      <p className="text-rose-700 text-sm mb-1">Моё спокойствие. Мой смех.</p>
-      <p className="text-rose-700 text-sm mb-4">Моё счастье.</p>
+      </motion.h1>
 
       {/* TIMER */}
-      <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 shadow-xl mb-6 w-full max-w-md">
-        <p className="text-rose-600 mb-3 font-semibold text-sm">Мы вместе уже:</p>
-        <div className="grid grid-cols-2 gap-3 text-rose-700 font-bold">
+      <div className="bg-white/70 backdrop-blur-md rounded-2xl p-4 shadow-xl mb-6 w-full max-w-md">
+        <p className="text-rose-600 mb-2 font-semibold">Мы вместе уже:</p>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-rose-700 font-bold">
           <div>
             <div className="text-xl">{timeTogether.days}</div>
             <div className="text-xs">дней</div>
@@ -192,15 +215,18 @@ export default function App() {
         </div>
       </div>
 
-      {/* MEDIA */}
-      <div className="relative w-full max-w-md aspect-[4/5] rounded-3xl overflow-hidden shadow-2xl bg-white">
+      <div
+        className="relative w-full max-w-xl aspect-[4/5] md:aspect-square rounded-3xl overflow-hidden shadow-2xl bg-white"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={index}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
-            transition={{ duration: 0.5 }}
+            transition={{ duration: 0.6 }}
             className="w-full h-full"
           >
             {media[index].type === "image" ? (
@@ -220,22 +246,25 @@ export default function App() {
         </AnimatePresence>
       </div>
 
-      <p className="text-rose-700 mt-4 text-xs">Свайпай влево или вправо 💞</p>
+      {!isMobile && (
+        <div className="flex gap-6 mt-6">
+          <button
+            onClick={prev}
+            className="rounded-2xl text-lg px-6 py-4 bg-rose-500 hover:bg-rose-600 text-white shadow-xl"
+          >
+            ⬅ Назад
+          </button>
+          <button
+            onClick={next}
+            className="rounded-2xl text-lg px-6 py-4 bg-rose-500 hover:bg-rose-600 text-white shadow-xl"
+          >
+            Вперёд ➡
+          </button>
+        </div>
+      )}
 
-      {/* Floating buttons fixed bottom for mobile */}
-      <div className="fixed bottom-4 left-0 right-0 flex justify-center gap-4">
-        <button
-          onClick={prev}
-          className="rounded-full px-5 py-3 bg-rose-500 text-white shadow-lg active:scale-95"
-        >
-          ⬅
-        </button>
-        <button
-          onClick={next}
-          className="rounded-full px-5 py-3 bg-rose-500 text-white shadow-lg active:scale-95"
-        >
-          ➡
-        </button>
+      <div className="bottom-4 text-rose-700 text-sm">
+        Люблю тебя сильнее с каждым днём ❤️
       </div>
     </div>
   );
