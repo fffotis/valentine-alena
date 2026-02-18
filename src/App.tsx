@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart } from "lucide-react";
 
-const START_DATE = new Date("2025-10-20T00:00:00");
+const START_DATE = new Date("2025-11-20T00:00:00");
 
 type MediaItem = {
   type: "image" | "video";
